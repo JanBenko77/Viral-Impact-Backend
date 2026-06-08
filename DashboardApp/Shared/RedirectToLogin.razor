@@ -1,0 +1,14 @@
+@inject NavigationManager Nav
+@inject AuthenticationStateProvider AuthStateProvider
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthStateProvider.GetAuthenticationStateAsync();
+        // Already logged in but hit a route their role can't access → send home
+        if (state.User.Identity?.IsAuthenticated == true)
+            Nav.NavigateTo("/", forceLoad: false);
+        else
+            Nav.NavigateTo("/login", forceLoad: false);
+    }
+}

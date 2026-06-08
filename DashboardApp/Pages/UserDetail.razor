@@ -1,0 +1,246 @@
+@page "/user/{UserId}"
+@attribute [Authorize]
+@inject ApiService Api
+@inject IJSRuntime JS
+
+<PageTitle>User Detail</PageTitle>
+
+@if (isLoading)
+{
+    <div class="text-center py-4"><span class="spinner-border"></span></div>
+}
+else if (user == null)
+{
+    <div class="alert alert-warning">User not found.</div>
+    <button class="btn btn-outline-secondary" @onclick="GoBack">← Back</button>
+}
+else
+{
+    <div class="d-flex align-items-center gap-3 mb-3 flex-wrap">
+        <button class="btn btn-outline-secondary btn-sm" @onclick="GoBack">← Back</button>
+        <h4 class="mb-0">@user.Name</h4>
+        <span class="text-muted">@@@user.Username</span>
+        @if (user.GroupId != null)
+        {
+            <span class="badge bg-secondary">Group: @user.GroupId</span>
+        }
+    </div>
+
+    <ul class="nav nav-tabs mb-3">
+        <li class="nav-item">
+            <button class="nav-link @(activeTab == "stats" ? "active" : "")"
+                    @onclick="@(() => activeTab = "stats")">
+                Game Stats (@stats.Count)
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link @(activeTab == "conversations" ? "active" : "")"
+                    @onclick="@(() => activeTab = "conversations")">
+                Conversations (@conversations.Count)
+            </button>
+        </li>
+    </ul>
+
+    @if (activeTab == "stats")
+    {
+        @if (!stats.Any())
+        {
+            <p class="text-muted">No game stats recorded yet.</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-sm table-bordered align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>Monsters Killed</th>
+                            <th>Deaths</th>
+                            <th>Levels Completed</th>
+                            <th>Conversations Completed</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var (s, i) in stats.Select((s, i) => (s, i + 1)))
+                        {
+                            <tr>
+                                <td>@i</td>
+                                <td>@s.MonstersKilled</td>
+                                <td>@s.Deaths</td>
+                                <td>@s.LevelsCompleted</td>
+                                <td>@s.ConversationsCompleted</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    }
+    else
+    {
+        <div class="d-flex align-items-center gap-3 mb-3">
+            <label class="form-label mb-0">Language:</label>
+            <select class="form-select form-select-sm w-auto" @onchange="OnLanguageChanged">
+                <option value="en">English</option>
+                <option value="nl-NL">Dutch</option>
+            </select>
+            @if (locLoading)
+            {
+                <span class="spinner-border spinner-border-sm text-secondary"></span>
+            }
+        </div>
+
+        @if (!conversations.Any())
+        {
+            <p class="text-muted">No conversations recorded yet.</p>
+        }
+        else
+        {
+            <div class="accordion" id="conversationAccordion">
+                @foreach (var (conv, idx) in conversations.Select((c, i) => (c, i)))
+                {
+                    var collapseId = $"conv{idx}";
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button"
+                                    data-bs-toggle="collapse" data-bs-target="#@collapseId"
+                                    aria-expanded="false" aria-controls="@collapseId">
+                                <strong class="me-3">@conv.NPCName</strong>
+                                <span class="text-muted small me-3">@conv.StartAt.ToString("yyyy-MM-dd HH:mm")</span>
+                                <span class="badge @(conv.Outcome ? "bg-success" : "bg-danger") me-3">
+                                    @(conv.Outcome ? "Success" : "Failed")
+                                </span>
+                                <span class="text-muted small">@conv.Turns.Count turn@(conv.Turns.Count == 1 ? "" : "s")</span>
+                            </button>
+                        </h2>
+                        <div id="@collapseId" class="accordion-collapse collapse"
+                             data-bs-parent="#conversationAccordion">
+                            <div class="accordion-body">
+                                @if (!conv.Turns.Any())
+                                {
+                                    <p class="text-muted mb-0">No turns recorded.</p>
+                                }
+                                else
+                                {
+                                    <div class="d-flex flex-column gap-3">
+                                        @foreach (var turn in conv.Turns.OrderBy(t => t.TurnIndex))
+                                        {
+                                            var npcLine = Resolve(turn.NPCLineKey);
+                                            var playerChose = Resolve(turn.PlayerEndKey);
+                                            var npcReaction = Resolve(turn.NPCReactionKey);
+                                            var hasPlayerChoice = !string.IsNullOrWhiteSpace(turn.PlayerEndKey);
+
+                                            <!-- NPC opening line for this turn -->
+                                            @if (!string.IsNullOrWhiteSpace(npcLine))
+                                            {
+                                                <div class="d-flex gap-2 align-items-start">
+                                                    <span class="badge bg-primary flex-shrink-0 mt-1">NPC</span>
+                                                    <div class="p-2 rounded bg-light border" style="max-width:80%">
+                                                        @npcLine
+                                                    </div>
+                                                </div>
+                                            }
+
+                                            <!-- Player choices + selection (only if a choice was made) -->
+                                            @if (hasPlayerChoice)
+                                            {
+                                                <div class="d-flex flex-column align-items-end gap-1">
+                                                    @if (turn.AllPlayerChoicesKeys.Count > 1)
+                                                    {
+                                                        <div class="d-flex flex-wrap gap-1 justify-content-end">
+                                                            @foreach (var choiceKey in turn.AllPlayerChoicesKeys)
+                                                            {
+                                                                var choiceText = Resolve(choiceKey);
+                                                                var isChosen = choiceKey == turn.PlayerEndKey;
+                                                                <span class="badge @(isChosen ? "bg-success" : "bg-secondary bg-opacity-50 text-dark")">
+                                                                    @choiceText
+                                                                </span>
+                                                            }
+                                                        </div>
+                                                    }
+                                                    <div class="p-2 rounded text-white" style="background:#0d6efd;max-width:80%">
+                                                        @playerChose
+                                                        <span class="ms-2 opacity-75" style="font-size:0.75rem">⏱ @turn.ResponseTimeSecs s</span>
+                                                    </div>
+                                                </div>
+                                            }
+
+                                            <!-- NPC reaction after player choice -->
+                                            @if (hasPlayerChoice && !string.IsNullOrWhiteSpace(npcReaction))
+                                            {
+                                                <div class="d-flex gap-2 align-items-start">
+                                                    <span class="badge bg-primary flex-shrink-0 mt-1">NPC</span>
+                                                    <div class="p-2 rounded bg-light border" style="max-width:80%">
+                                                        @npcReaction
+                                                    </div>
+                                                </div>
+                                            }
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    }
+}
+
+@code {
+    [Parameter] public string UserId { get; set; } = "";
+
+    private UserDto? user;
+    private List<GameStatsDto> stats = new();
+    private List<ConversationSessionDto> conversations = new();
+    private Dictionary<string, string> localization = new();
+    private bool isLoading = true;
+    private bool locLoading;
+    private string activeTab = "stats";
+    private string selectedLanguage = "en";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var userTask = Api.GetUserAsync(UserId);
+            var statsTask = Api.GetUserStatsAsync(UserId);
+            var convoTask = Api.GetUserConversationsAsync(UserId);
+            var locTask = Api.GetLocalizationAsync(selectedLanguage);
+            await Task.WhenAll(userTask, statsTask, convoTask, locTask);
+            user = userTask.Result;
+            stats = statsTask.Result ?? new();
+            conversations = convoTask.Result ?? new();
+            localization = locTask.Result ?? new();
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task OnLanguageChanged(ChangeEventArgs e)
+    {
+        selectedLanguage = e.Value?.ToString() ?? "en";
+        locLoading = true;
+        localization = await Api.GetLocalizationAsync(selectedLanguage) ?? new();
+        locLoading = false;
+    }
+
+    // Dict keys are "GroupId.UnitId". Game sends bare UnitId (which can itself contain dots,
+    // e.g. "AC-1.5-npc"), so we split on the FIRST dot to isolate the GroupId prefix
+    // and compare the remainder against the input key.
+    private string Resolve(string key)
+    {
+        if (string.IsNullOrEmpty(key)) return key;
+        if (localization.TryGetValue(key, out var exact)) return exact;
+        var match = localization.FirstOrDefault(kv =>
+        {
+            var sep = kv.Key.IndexOf('.');
+            return sep >= 0 && kv.Key[(sep + 1)..] == key;
+        });
+        return match.Value ?? key;
+    }
+
+    private async Task GoBack() => await JS.InvokeVoidAsync("history.back");
+}

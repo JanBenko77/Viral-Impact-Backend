@@ -1,0 +1,99 @@
+@page "/dashboard"
+@attribute [Authorize(Roles = "Admin,Scientist")]
+@inject ApiService Api
+
+<PageTitle>Users</PageTitle>
+
+<h4 class="mb-3">Users</h4>
+
+@if (isLoading)
+{
+    <div class="text-center py-4"><span class="spinner-border"></span></div>
+}
+else if (errorMessage != null)
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+else
+{
+    <div class="row mb-3">
+        <div class="col-md-4">
+            <label class="form-label">Filter by Group</label>
+            <select class="form-select" @onchange="OnGroupFilterChanged">
+                <option value="">All Groups</option>
+                @foreach (var g in groups)
+                {
+                    <option value="@g">@g</option>
+                }
+            </select>
+        </div>
+        <div class="col-md-4 d-flex align-items-end">
+            <span class="text-muted small">@FilteredUsers.Count() users</span>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-hover table-striped align-middle">
+            <thead class="table-dark">
+                <tr>
+                    <th>Name</th>
+                    <th>Username</th>
+                    <th>Group</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var user in FilteredUsers)
+                {
+                    <tr>
+                        <td>@user.Name</td>
+                        <td>@user.Username</td>
+                        <td><span class="badge bg-secondary">@(user.GroupId ?? "—")</span></td>
+                        <td>
+                            <a class="btn btn-sm btn-outline-primary" href="user/@user.Id">View</a>
+                        </td>
+                    </tr>
+                }
+                @if (!FilteredUsers.Any())
+                {
+                    <tr><td colspan="4" class="text-center text-muted py-3">No users found.</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private List<UserDto> users = new();
+    private List<string> groups = new();
+    private string selectedGroup = "";
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    private IEnumerable<UserDto> FilteredUsers => string.IsNullOrEmpty(selectedGroup)
+        ? users
+        : users.Where(u => u.GroupId == selectedGroup);
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var userTask = Api.GetUsersAsync();
+            var groupTask = Api.GetGroupsAsync();
+            await Task.WhenAll(userTask, groupTask);
+            users = userTask.Result ?? new();
+            groups = (groupTask.Result ?? new()).Where(g => g != null).ToList()!;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to load data: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void OnGroupFilterChanged(ChangeEventArgs e) =>
+        selectedGroup = e.Value?.ToString() ?? "";
+}

@@ -1,0 +1,68 @@
+@page "/clients"
+@attribute [Authorize(Roles = "Caretaker")]
+@inject ApiService Api
+
+<PageTitle>My Group</PageTitle>
+
+<h4 class="mb-3">My Group</h4>
+
+@if (isLoading)
+{
+    <div class="text-center py-4"><span class="spinner-border"></span></div>
+}
+else if (errorMessage != null)
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-hover table-striped align-middle">
+            <thead class="table-dark">
+                <tr>
+                    <th>Name</th>
+                    <th>Username</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var user in users)
+                {
+                    <tr>
+                        <td>@user.Name</td>
+                        <td>@user.Username</td>
+                        <td>
+                            <a class="btn btn-sm btn-outline-primary" href="user/@user.Id">View</a>
+                        </td>
+                    </tr>
+                }
+                @if (!users.Any())
+                {
+                    <tr><td colspan="3" class="text-center text-muted py-3">No users in your group.</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private List<UserDto> users = new();
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            users = await Api.GetUsersAsync() ?? new();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to load users: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}
