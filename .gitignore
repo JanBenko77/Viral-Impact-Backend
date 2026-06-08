@@ -26,7 +26,10 @@ ViralImpact.Api/appsettings.Development.json
 # Not showing — folders
 **/Properties/
 **/publish/
-ViralImpact.Api/Data/
+ViralImpact.Api/Data/LocalizationEntriesDbContext.cs
+ViralImpact.Api/Data/StaffDbContext.cs
+ViralImpact.Api/Data/StaffSeeder.cs
+ViralImpact.Api/Data/UsersDbContext.cs
 ViralImpact.Api/Migrations/
 ViralImpact.Api/appsettings.example.json
 DashboardApp/Layout/
