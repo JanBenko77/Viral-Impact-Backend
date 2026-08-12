@@ -126,6 +126,7 @@ else
                                         @foreach (var turn in conv.Turns.OrderBy(t => t.TurnIndex))
                                         {
                                             var npcLine = Resolve(turn.NPCLineKey);
+                                            var playerChoseStart = Resolve(turn.PlayerStartKey);
                                             var playerChose = Resolve(turn.PlayerEndKey);
                                             var npcReaction = Resolve(turn.NPCReactionKey);
                                             var hasPlayerChoice = !string.IsNullOrWhiteSpace(turn.PlayerEndKey);
@@ -149,7 +150,7 @@ else
                                                     {
                                                         <div class="d-flex flex-wrap gap-1 justify-content-end">
                                                             @foreach (var choiceKey in turn.AllPlayerChoicesKeys)
-                                                            {
+                                                            {//do stuff here that we forgot playerstart + playerend keys together
                                                                 var choiceText = Resolve(choiceKey);
                                                                 var isChosen = choiceKey == turn.PlayerEndKey;
                                                                 <span class="badge @(isChosen ? "bg-success" : "bg-secondary bg-opacity-50 text-dark")">

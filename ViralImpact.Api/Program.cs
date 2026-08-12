@@ -96,7 +96,7 @@ builder.Services.AddCors(options =>
               .AllowCredentials();
     });
 
-    // Allow any origin for the dashboard during development — tighten before production
+    
     options.AddPolicy("DashboardPolicy", policy =>
     {
         policy.AllowAnyOrigin()
